@@ -1,19 +1,24 @@
 package com.bignerdranch.android.crimminalintent;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.ShareCompat;
+import android.support.v4.content.ContextCompat;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.text.format.DateFormat;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,11 +33,14 @@ import java.util.UUID;
 import static android.widget.CompoundButton.*;
 
 public class CrimeFragment extends Fragment {
+
     private static final String ARG_CRIME_ID = "crime_id";
     private static final String DIALOG_DATE = "DialogDate";
 
     private static final int REQUEST_DATE = 0;
     private static final int REQUEST_CONTACT = 1;
+
+    private static final int PERMISSION_REQUEST_READ_CONTACT = 100;
 
     private Crime mCrime;
     private EditText mTitleField;
@@ -41,6 +49,8 @@ public class CrimeFragment extends Fragment {
     private Button mReportButton;
     private Button mSuspectButton;
     private Button mCallButton;
+
+    private static final Intent mPickContact = new Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI);
 
     public static CrimeFragment newInstance(UUID crimeId) {
         Bundle args = new Bundle();
@@ -123,12 +133,17 @@ public class CrimeFragment extends Fragment {
             }
         });
 
-        final Intent pickContact = new Intent (Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI);
         mSuspectButton = (Button) v.findViewById(R.id.crime_suspect);
         mSuspectButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivityForResult(pickContact, REQUEST_CONTACT);
+                if (ContextCompat.checkSelfPermission(getActivity(),
+                        Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[] {Manifest.permission.READ_CONTACTS},
+                            PERMISSION_REQUEST_READ_CONTACT);
+                } else {
+                    pickContact();
+                }
             }
         });
 
@@ -136,22 +151,40 @@ public class CrimeFragment extends Fragment {
         mCallButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                ContentResolver cr = getActivity().getContentResolver();
+                Cursor c = cr.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null,
+                        ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
+                        new String[]{mCrime.getSuspect()}, null);
+                c.moveToFirst();
+                String phone = c.getString(c.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
+                Uri number = Uri.parse("tel:" + phone);
+                Intent intent = new Intent(Intent.ACTION_DIAL, number);
+                c.close();
+                startActivity(intent);
             }
         });
 
         if (mCrime.getSuspect() !=  null) {
-            mSuspectButton.setText(mCrime.getSuspect());
+            updateSuspect();
         } else {
             mCallButton.setEnabled(false);
         }
 
         PackageManager packageManager = getActivity().getPackageManager();
-        if (packageManager.resolveActivity(pickContact, PackageManager.MATCH_DEFAULT_ONLY) == null) {
+        if (packageManager.resolveActivity(mPickContact, PackageManager.MATCH_DEFAULT_ONLY) == null) {
             mSuspectButton.setEnabled(false);
         }
 
         return v;
+    }
+
+    private void updateSuspect() {
+        Cursor c = getActivity().getContentResolver().query(ContactsContract.Contacts.CONTENT_URI,
+                null, ContactsContract.Contacts._ID + " = ?", new String[] {mCrime.getSuspect()}, null);
+        c.moveToFirst();
+        String suspect_name = c.getString(c.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME));
+        c.close();
+        mSuspectButton.setText(suspect_name);
     }
 
     private void updateDate() {
@@ -195,26 +228,35 @@ public class CrimeFragment extends Fragment {
             Uri contactUri = data.getData();
             // Specify which fields you want to query to return values for
             String[] queryFields = new String[] {
-                    ContactsContract.Contacts.DISPLAY_NAME
+                    ContactsContract.Contacts._ID
             };
-            // Perform your query - the contactUri is like a "where" clause here
-            Cursor c = getActivity().getContentResolver().query(contactUri, queryFields, null, null, null);
 
-            try {
+            // Perform your query - the contactUri is like a "where" clause here
+            try (Cursor c = getActivity().getContentResolver().query(contactUri, queryFields, null, null, null);) {
                 // Double-check that you actually got the results
                 if (c.getCount() == 0) {
                     return;
                 }
 
-                // Pull out the first column of the first row data -
-                // that is your suspect's name
                 c.moveToFirst();
-                String suspect = c.getString(0);
-                mCrime.setSuspect(suspect);
-                mSuspectButton.setText(suspect);
-            } finally {
-                c.close();
+                String suspect_id = c.getString(0);
+                mCrime.setSuspect(suspect_id);
+                mCallButton.setEnabled(true);
+                updateSuspect();
             }
         }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (PERMISSION_REQUEST_READ_CONTACT == requestCode) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                pickContact();
+            }
+        }
+    }
+
+    private void pickContact() {
+        startActivityForResult(mPickContact, REQUEST_CONTACT);
     }
 }
