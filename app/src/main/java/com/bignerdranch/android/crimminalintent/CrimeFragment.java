@@ -20,6 +20,7 @@ import android.text.format.DateFormat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
@@ -37,6 +38,7 @@ import static android.widget.CompoundButton.*;
 public class CrimeFragment extends Fragment {
     private static final String ARG_CRIME_ID = "crime_id";
     private static final String DIALOG_DATE = "DialogDate";
+    private static final String DIALOG_PHOTO = "DialogPhoto";
 
     private static final int REQUEST_DATE = 0;
     private static final int REQUEST_CONTACT = 1;
@@ -51,6 +53,7 @@ public class CrimeFragment extends Fragment {
     private Button mSuspectButton;
     private ImageButton mPhotoButton;
     private ImageView mPhotoView;
+    private ViewTreeObserver observer;
 
     public static CrimeFragment newInstance(UUID crimeId) {
         Bundle args = new Bundle();
@@ -178,7 +181,22 @@ public class CrimeFragment extends Fragment {
         });
 
         mPhotoView = (ImageView) v.findViewById(R.id.crime_photo);
-        updatePhotoView();
+        mPhotoView.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                DetailDisplayFragment dialog = DetailDisplayFragment.newInstance(mPhotoFile);
+                dialog.show(getFragmentManager(), DIALOG_PHOTO);
+            }
+        });
+
+        observer = mPhotoView.getViewTreeObserver();
+        observer.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                updatePhotoView();
+            }
+        });
+
         return v;
     }
 
@@ -212,9 +230,13 @@ public class CrimeFragment extends Fragment {
     private void updatePhotoView() {
         if (mPhotoView == null || !mPhotoFile.exists()) {
             mPhotoView.setImageDrawable(null);
+            mPhotoView.setEnabled(false);
         } else {
-            Bitmap bitmap = PictureUtils.getScaledBitmap(mPhotoFile.getPath(), getActivity());
+            int x = mPhotoView.getWidth();
+            int y = mPhotoView.getHeight();
+            Bitmap bitmap = PictureUtils.getScaledBitmap(mPhotoFile.getPath(), x, y);
             mPhotoView.setImageBitmap(bitmap);
+            mPhotoView.setEnabled(true);
         }
     }
 
