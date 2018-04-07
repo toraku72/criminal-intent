@@ -1,13 +1,13 @@
 package com.bignerdranch.android.crimminalintent;
 
 import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.helper.ItemTouchHelper;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -26,12 +26,14 @@ public class CrimeListFragment extends Fragment {
     private CrimeAdapter mAdapter;
     private boolean mSubtitleVisible;
     private Callbacks mCallbacks;
+    private ItemTouchHelper mItemTouchHelper;
 
     /**
      * Required interface for hosting activities
      */
     public interface Callbacks {
         void onCrimeSelected(Crime crime);
+        void onCrimeDeleted(Crime crime);
     }
 
     @Override
@@ -59,6 +61,9 @@ public class CrimeListFragment extends Fragment {
 
         updateUI();
 
+        ItemTouchHelperCallback callback = new ItemTouchHelperCallback(mAdapter);
+        mItemTouchHelper = new ItemTouchHelper(callback);
+        mItemTouchHelper.attachToRecyclerView(mCrimeRecylerView);
         return view;
     }
 
@@ -154,7 +159,7 @@ public class CrimeListFragment extends Fragment {
         }
     }
 
-    private class CrimeAdapter extends RecyclerView.Adapter<CrimeHolder> {
+    private class CrimeAdapter extends RecyclerView.Adapter<CrimeHolder> implements ItemTouchHelperCallback.ItemTouchHelperAdapter {
         private List<Crime> mCrimes;
 
         public CrimeAdapter(List<Crime> crimes) {
@@ -180,6 +185,13 @@ public class CrimeListFragment extends Fragment {
 
         public void setCrimes(List<Crime> crimes) {
             mCrimes = crimes;
+        }
+
+        @Override
+        public void onItemDismiss(int position) {
+            mCallbacks.onCrimeDeleted(mCrimes.get(position));
+            CrimeLab.get(getActivity()).removeCrime(mCrimes.get(position));
+            updateUI();
         }
     }
 
