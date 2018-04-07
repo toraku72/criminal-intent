@@ -55,7 +55,7 @@ public class CrimeFragment extends Fragment {
     private Callbacks mCallbacks;
 
     public interface Callbacks {
-        void onCrimeUdated(Crime crime);
+        void onCrimeUpdated(Crime crime);
     }
 
     public static CrimeFragment newInstance(UUID crimeId) {
@@ -205,7 +205,7 @@ public class CrimeFragment extends Fragment {
 
     private void updateCrime() {
         CrimeLab.get(getActivity()).updateCrime(mCrime);
-        mCallbacks.onCrimeUdated(mCrime);
+        mCallbacks.onCrimeUpdated(mCrime);
     }
 
     private void updateDate() {

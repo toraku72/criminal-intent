@@ -57,7 +57,7 @@ public class CrimePagerActivity extends AppCompatActivity implements CrimeFragme
     }
 
     @Override
-    public void onCrimeUdated(Crime crime) {
+    public void onCrimeUpdated(Crime crime) {
 
     }
 }
