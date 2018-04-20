@@ -8,6 +8,7 @@ import android.content.pm.ResolveInfo;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.provider.MediaStore;
@@ -29,8 +30,10 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import static android.widget.CompoundButton.*;
@@ -209,7 +212,14 @@ public class CrimeFragment extends Fragment {
     }
 
     private void updateDate() {
-        mDateButton.setText(mCrime.getDate().toString());
+        if (Build.VERSION.SDK_INT >= 24) {
+            mDateButton.setText(android.icu.text.DateFormat.getDateInstance(android.icu.text.DateFormat.LONG).format(mCrime.getDate()));
+        } else {
+            String dateFormat = "EEE, MMM dd";
+            String dateString = new SimpleDateFormat(dateFormat, Locale.getDefault())
+                    .format(mCrime.getDate());
+            mDateButton.setText(dateString);
+        }
     }
 
     private String getCrimeReport() {
